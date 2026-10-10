@@ -354,6 +354,33 @@ final class MTMathListBuilderTests: XCTestCase {
         }
     }
 
+    func testMathord() throws {
+        // A prefix ! (the subfactorial) spaced as a letter: the + before it stays binary
+        let str = "3+\\mathord{!}4"
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: str))
+        XCTAssertEqual(list.atoms.map(\.type), [.number, .binaryOperator, .ordinary, .number], str)
+        XCTAssertEqual(list.atoms[2].nucleus, "!", str)
+        XCTAssertEqual(list.finalized.atoms[1].type, .binaryOperator, str)
+        XCTAssertEqual(MTMathListBuilder.mathListToString(list), "3+\\mathord{!}4", str)
+        // Without it, ! closes and the + before it becomes a sign
+        let plain = try XCTUnwrap(MTMathListBuilder.build(fromString: "3+!4"))
+        XCTAssertEqual(plain.finalized.atoms[1].type, .unaryOperator)
+
+        var error: NSError?
+        XCTAssertNil(MTMathListBuilder.build(fromString: "\\mathord{ab}", error: &error))
+        XCTAssertEqual(error?.code, MTParseErrors.invalidCommand.rawValue)
+    }
+
+    func testMinusStartingAMatrixCellIsASign() throws {
+        // Every cell starts with a style atom; the - after it is still the first noad
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "\\begin{bmatrix} -1 & 2-3 \\end{bmatrix}"))
+        let table = try XCTUnwrap(list.atoms.compactMap { ($0 as? MTInner)?.innerList?.atoms.first as? MTMathTable ?? $0 as? MTMathTable }.first)
+        let first = table.cells[0][0].finalized.atoms.filter { $0.type != .style }
+        XCTAssertEqual(first.first?.type, .unaryOperator)
+        let second = table.cells[0][1].finalized.atoms.filter { $0.type != .style }
+        XCTAssertEqual(second.map(\.type), [.number, .binaryOperator, .number])
+    }
+
     func testFrac() throws {
         let str = "\\frac1c";
         let list = MTMathListBuilder.build(fromString: str)!

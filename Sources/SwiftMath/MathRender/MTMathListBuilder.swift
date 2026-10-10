@@ -472,6 +472,11 @@ public struct MTMathListBuilder {
                     }
                 } else if atom.nucleus.isEmpty {
                     str += "{}"
+                } else if atom.type == .ordinary, atom.nucleus.count == 1,
+                          let natural = MTMathAtomFactory.atom(forCharacter: atom.nucleus.first!),
+                          ![.ordinary, .number, .variable].contains(natural.type) {
+                    // A symbol made ordinary with \mathord
+                    str += "\\mathord{\(atom.nucleus)}"
                 } else if atom.nucleus == "\u{2236}" {
                     // math colon
                     str += ":"
@@ -523,6 +528,17 @@ public struct MTMathListBuilder {
             // The command is an accent
             accent.innerList = self.buildInternal(true)
             return accent;
+        } else if command == "mathord" {
+            // \mathord{x}: the symbol x spaced as an ordinary one, like a letter. In !n (a
+            // prefix !) the ! isn't a closing symbol, and a + before it stays binary.
+            let argument = self.buildInternal(true)
+            guard let atoms = argument?.atoms, atoms.count == 1, let atom = atoms.first,
+                  Swift.type(of: atom) == MTMathAtom.self, atom.superScript == nil, atom.subScript == nil else {
+                self.setError(.invalidCommand, message: "\\mathord takes a single symbol")
+                return nil
+            }
+            atom.type = .ordinary
+            return atom
         } else if command == "frac" {
             // A fraction command has 2 arguments
             let frac = MTFraction()

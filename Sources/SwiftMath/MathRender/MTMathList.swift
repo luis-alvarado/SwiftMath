@@ -902,6 +902,9 @@ public class MTMathList : NSObject {
         let zeroRange = NSMakeRange(0, 0)
         
         var prevNode: MTMathAtom? = nil
+        // The last atom other than a style change: as in TeX, \displaystyle and the like (which
+        // start every matrix cell) don't make a following - binary
+        var prevNoad: MTMathAtom? = nil
         for atom in self.atoms {
             let newNode = atom.finalized
             
@@ -912,7 +915,7 @@ public class MTMathList : NSObject {
             
             switch newNode.type {
             case .binaryOperator:
-                if isNotBinaryOperator(prevNode)  {
+                if isNotBinaryOperator(prevNoad)  {
                     newNode.type = .unaryOperator
                 }
             case .relation, .punctuation, .close:
@@ -928,6 +931,7 @@ public class MTMathList : NSObject {
             }
             finalizedList.add(newNode)
             prevNode = newNode
+            if newNode.type != .style { prevNoad = newNode }
         }
         if prevNode != nil && prevNode!.type == .binaryOperator {
             prevNode!.type = .unaryOperator
