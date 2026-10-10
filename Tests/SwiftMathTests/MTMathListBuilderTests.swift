@@ -343,6 +343,17 @@ final class MTMathListBuilderTests: XCTestCase {
         XCTAssertEqual(atom.nucleus, "2", desc)
     }
 
+    func testTextDashes() throws {
+        for (command, dash) in [("textendash", "\u{2013}"), ("textemdash", "\u{2014}")] {
+            let str = "1\\\(command) 2"
+            let list = try XCTUnwrap(MTMathListBuilder.build(fromString: str))
+            XCTAssertEqual(list.atoms.count, 3, str)
+            XCTAssertEqual(list.atoms[1].type, .ordinary, str)
+            XCTAssertEqual(list.atoms[1].nucleus, dash, str)
+            XCTAssertEqual(MTMathListBuilder.mathListToString(list), "1\\\(command) 2", str)
+        }
+    }
+
     func testFrac() throws {
         let str = "\\frac1c";
         let list = MTMathListBuilder.build(fromString: str)!

@@ -371,6 +371,9 @@ public class MTMathAtomFactory {
         "|" : MTMathAtom(type: .ordinary, value: "\u{2016}"),
         "vert" : MTMathAtom(type: .ordinary, value: "|"),
         "ldots" : MTMathAtom(type: .ordinary, value: "\u{2026}"),
+        // Dashes, as LaTeX's text commands (a literal – or — isn't a recognized character)
+        "textendash" : MTMathAtom(type: .ordinary, value: "\u{2013}"),
+        "textemdash" : MTMathAtom(type: .ordinary, value: "\u{2014}"),
         "prime" : MTMathAtom(type: .ordinary, value: "\u{2032}"),
         "hbar" : MTMathAtom(type: .ordinary, value: "\u{210F}"),
         "lbar" : MTMathAtom(type: .ordinary, value: "\u{019B}"),  // NEW ƛ
