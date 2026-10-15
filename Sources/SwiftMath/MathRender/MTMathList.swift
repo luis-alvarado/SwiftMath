@@ -902,8 +902,11 @@ public class MTMathList : NSObject {
         let zeroRange = NSMakeRange(0, 0)
         
         var prevNode: MTMathAtom? = nil
-        // The last atom other than a style change: as in TeX, \displaystyle and the like (which
-        // start every matrix cell) don't make a following - binary
+        // The last atom other than a style change or a space: as in TeX, \displaystyle and the
+        // like (which start every matrix cell) and spaces (\, \; \quad: glue, not noads) don't
+        // decide whether a - is binary or a sign. A space between a comma and a - left it binary,
+        // and the typesetter, which skips spaces, then met punctuation and a binary operator: a
+        // pair TeX's spacing table has no space for (an assertion in debug builds)
         var prevNoad: MTMathAtom? = nil
         for atom in self.atoms {
             let newNode = atom.finalized
@@ -919,8 +922,8 @@ public class MTMathList : NSObject {
                     newNode.type = .unaryOperator
                 }
             case .relation, .punctuation, .close:
-                if prevNode != nil && prevNode!.type == .binaryOperator {
-                    prevNode!.type = .unaryOperator
+                if prevNoad != nil && prevNoad!.type == .binaryOperator {
+                    prevNoad!.type = .unaryOperator
                 }
             case .number:
                 if prevNode != nil && prevNode!.type == .number && prevNode!.subScript == nil && prevNode!.superScript == nil {
@@ -931,10 +934,10 @@ public class MTMathList : NSObject {
             }
             finalizedList.add(newNode)
             prevNode = newNode
-            if newNode.type != .style { prevNoad = newNode }
+            if newNode.type != .style && newNode.type != .space { prevNoad = newNode }
         }
-        if prevNode != nil && prevNode!.type == .binaryOperator {
-            prevNode!.type = .unaryOperator
+        if prevNoad != nil && prevNoad!.type == .binaryOperator {
+            prevNoad!.type = .unaryOperator
         }
         return finalizedList
     }

@@ -381,6 +381,29 @@ final class MTMathListBuilderTests: XCTestCase {
         XCTAssertEqual(second.map(\.type), [.number, .binaryOperator, .number])
     }
 
+    func testSpacesDontDecideWhetherAMinusIsASign() throws {
+        func types(_ str: String) throws -> [MTMathAtomType] {
+            try XCTUnwrap(MTMathListBuilder.build(fromString: str)).finalized.atoms.filter { $0.type != .space }.map(\.type)
+        }
+        // A - after punctuation and a space is a sign, as without the space (it stayed binary,
+        // and laying it out asserted: "Invalid space between Punctuation and Binary Operator")
+        XCTAssertEqual(try types("a,\\, -b"), try types("a,-b"))
+        XCTAssertEqual(try types("a,\\, -b")[2], .unaryOperator)
+        XCTAssertEqual(try types("a,\\; -b")[2], .unaryOperator)
+        XCTAssertEqual(try types("(\\quad -b)")[1], .unaryOperator)
+        // A - before a space and a closing bracket or relation, or at the end, isn't binary either
+        XCTAssertEqual(try types("(a -\\,)")[2], .unaryOperator)
+        XCTAssertEqual(try types("a -\\; = b")[1], .unaryOperator)
+        XCTAssertEqual(try types("a -\\,")[1], .unaryOperator)
+        // Between two values it stays binary, spaces or not
+        XCTAssertEqual(try types("a \\, - \\, b")[1], .binaryOperator)
+        // Digits a thin space apart stay two numbers (10\,000 is grouped, not fused)
+        XCTAssertEqual(try types("10\\,000"), [.number, .number])
+        // And it lays out
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "e^{x},\\, -e^{-\\frac{x}{4}},\\; x"))
+        XCTAssertNotNil(MTTypesetter.createLineForMathList(list, font: MTFontManager.fontManager.defaultFont, style: .display))
+    }
+
     func testFrac() throws {
         let str = "\\frac1c";
         let list = MTMathListBuilder.build(fromString: str)!
