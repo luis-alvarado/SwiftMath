@@ -304,6 +304,11 @@ public struct MTMathListBuilder {
                     // Not a recognized character
                     continue
                 }
+                // In \text, punctuation and symbols are text, as in LaTeX: no math spacing
+                // around them ("9:00 AM", not a relation's "9 : 00 AM"; "Dec 25, 2027")
+                if spacesAllowed, let type = atom?.type, [.binaryOperator, .relation, .punctuation, .unaryOperator].contains(type) {
+                    atom?.type = .ordinary
+                }
             }
             
             assert(atom != nil, "Atom shouldn't be nil")

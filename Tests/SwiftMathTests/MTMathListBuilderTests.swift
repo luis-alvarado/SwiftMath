@@ -354,6 +354,28 @@ final class MTMathListBuilderTests: XCTestCase {
         }
     }
 
+    func testPunctuationInTextIsText() throws {
+        // A colon, comma or dash in \text is a character of the text: no relation, punctuation or
+        // operator spacing ("9:00 AM" drew as "9 : 00 AM")
+        let str = "\\text{9:00 AM, a-b}"
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: str))
+        let marks = list.atoms.filter { !"0123456789AMab ".contains($0.nucleus) }
+        XCTAssertEqual(marks.count, 3, str) // : , -
+        XCTAssertTrue(marks.allSatisfy { $0.type == .ordinary }, "\(marks.map(\.type))")
+        XCTAssertTrue(list.finalized.atoms.allSatisfy { [.ordinary, .number, .variable].contains($0.type) }, str)
+        // Outside \text they're math as before
+        let math = try XCTUnwrap(MTMathListBuilder.build(fromString: "a:b,c-d"))
+        XCTAssertEqual(math.atoms.map(\.type), [.variable, .relation, .variable, .punctuation, .variable, .binaryOperator, .variable])
+        // Typeset, the colon sits between its digits: as wide as the characters alone
+        let font = try XCTUnwrap(MTFontManager.fontManager.defaultFont)
+        func width(_ latex: String) throws -> CGFloat {
+            let display = try XCTUnwrap(MTTypesetter.createLineForMathList(try XCTUnwrap(MTMathListBuilder.build(fromString: latex)), font: font, style: .display))
+            return display.width
+        }
+        XCTAssertEqual(try width("\\text{9:00}"), try width("\\mathord{9}\\mathord{:}\\mathord{0}\\mathord{0}"), accuracy: 0.01)
+        XCTAssertLessThan(try width("\\text{9:00}"), try width("9:00"))
+    }
+
     func testMathord() throws {
         // A prefix ! (the subfactorial) spaced as a letter: the + before it stays binary
         let str = "3+\\mathord{!}4"
