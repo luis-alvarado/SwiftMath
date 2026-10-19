@@ -376,6 +376,13 @@ final class MTMathListBuilderTests: XCTestCase {
         XCTAssertLessThan(try width("\\text{9:00}"), try width("9:00"))
     }
 
+    func testAccentedLettersInTextAreUpright() throws {
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "\\text{héllo}"))
+        let accent = try XCTUnwrap(list.atoms[1] as? MTAccent)
+        XCTAssertEqual(accent.fontStyle, .roman)
+        XCTAssertEqual(accent.innerList?.atoms.map(\.fontStyle), [.roman], "the e under the accent as the text's")
+    }
+
     func testMathord() throws {
         // A prefix ! (the subfactorial) spaced as a letter: the + before it stays binary
         let str = "3+\\mathord{!}4"

@@ -313,6 +313,9 @@ public struct MTMathListBuilder {
             
             assert(atom != nil, "Atom shouldn't be nil")
             atom?.fontStyle = currentFontStyle
+            // A typed accented letter (é) is an accent over its letter: the letter in the same
+            // style, upright in \text (it was the math italic e under an upright accent)
+            if let accent = atom as? MTAccent { accent.innerList?.atoms.forEach { $0.fontStyle = currentFontStyle } }
             list.add(atom)
             prevAtom = atom
             
