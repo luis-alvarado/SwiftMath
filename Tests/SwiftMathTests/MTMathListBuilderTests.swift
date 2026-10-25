@@ -400,6 +400,17 @@ final class MTMathListBuilderTests: XCTestCase {
         XCTAssertEqual(error?.code, MTParseErrors.invalidCommand.rawValue)
     }
 
+    func testEscapedAmpersand() throws {
+        // \& is an ordinary &, not a column break, inside a matrix too
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "a \\>\\&\\> b"))
+        XCTAssertEqual(list.atoms.filter { $0.type != .space }.map(\.nucleus), ["a", "&", "b"])
+        XCTAssertEqual(list.atoms.first { $0.nucleus == "&" }?.type, .ordinary)
+        let matrix = try XCTUnwrap(MTMathListBuilder.build(fromString: "\\begin{bmatrix} 1 \\& 2 & 3 \\end{bmatrix}"))
+        let table = try XCTUnwrap(matrix.atoms.compactMap { $0 as? MTMathTable }.first ?? (matrix.atoms.first as? MTInner)?.innerList?.atoms.compactMap { $0 as? MTMathTable }.first)
+        XCTAssertEqual(table.numColumns, 2)
+        XCTAssertTrue(MTMathListBuilder.mathListToString(list).contains("\\&"))
+    }
+
     func testMinusStartingAMatrixCellIsASign() throws {
         // Every cell starts with a style atom; the - after it is still the first noad
         let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "\\begin{bmatrix} -1 & 2-3 \\end{bmatrix}"))
