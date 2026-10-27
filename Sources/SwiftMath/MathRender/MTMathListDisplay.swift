@@ -829,3 +829,30 @@ class MTAccentDisplay : MTDisplay {
     }
     
 }
+
+// MARK: - Color boxes
+
+extension MTDisplay {
+    /// Where each `\colorbox` is, in the coordinates this display is drawn in (y up), `origin`
+    /// being where they start: a list draws what it holds from its position, the other displays
+    /// theirs where they are
+    func colorBoxes(from origin: CGPoint, into boxes: inout [CGRect]) {
+        if localBackgroundColor != nil {
+            boxes.append(displayBounds().offsetBy(dx: origin.x, dy: origin.y))
+        }
+        var held: [MTDisplay?] = []
+        var holdsFrom = origin
+        switch self {
+        case let list as MTMathListDisplay:
+            held = list.subDisplays
+            holdsFrom = CGPoint(x: origin.x + list.position.x, y: origin.y + list.position.y)
+        case let fraction as MTFractionDisplay: held = [fraction.numerator, fraction.denominator]
+        case let radical as MTRadicalDisplay: held = [radical.radicand, radical.degree]
+        case let limits as MTLargeOpLimitsDisplay: held = [limits.upperLimit, limits.lowerLimit, limits.nucleus]
+        case let line as MTLineDisplay: held = [line.inner]
+        case let accent as MTAccentDisplay: held = [accent.accentee]
+        default: break
+        }
+        for display in held { display?.colorBoxes(from: holdsFrom, into: &boxes) }
+    }
+}

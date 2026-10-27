@@ -49,10 +49,13 @@ extension MathImage {
     public struct LayoutInfo {
         public var ascent: CGFloat = 0
         public var descent: CGFloat = 0
+        /// Where each `\colorbox` is in the image, from its top left corner (y down)
+        public var colorBoxes: [CGRect] = []
 
-        public init(ascent: CGFloat, descent: CGFloat) {
+        public init(ascent: CGFloat, descent: CGFloat, colorBoxes: [CGRect] = []) {
             self.ascent = ascent
             self.descent = descent
+            self.colorBoxes = colorBoxes
         }
     }
     public mutating func asImage() -> (NSError?, MTImage?, LayoutInfo?) {
@@ -86,6 +89,10 @@ extension MathImage {
 
         let size = intrinsicContentSize.regularized
         layoutImage(size: size, displayList: displayList)
+        var boxes: [CGRect] = []
+        displayList.colorBoxes(from: .zero, into: &boxes)
+        let layout = LayoutInfo(ascent: displayList.ascent, descent: displayList.descent,
+                                colorBoxes: boxes.map { CGRect(x: $0.minX, y: size.height - $0.maxY, width: $0.width, height: $0.height) })
         
         #if os(iOS) || os(visionOS)
             let renderer = UIGraphicsImageRenderer(size: size)
@@ -95,7 +102,7 @@ extension MathImage {
                 displayList.draw(rendererContext.cgContext)
                 rendererContext.cgContext.restoreGState()
             }
-            return (nil, image, LayoutInfo(ascent: displayList.ascent, descent: displayList.descent))
+            return (nil, image, layout)
         #endif
         #if os(macOS)
             let image = NSImage(size: size, flipped: false) { bounds in
@@ -105,7 +112,7 @@ extension MathImage {
                 context.restoreGState()
                 return true
             }
-            return (nil, image, LayoutInfo(ascent: displayList.ascent, descent: displayList.descent))
+            return (nil, image, layout)
         #endif
     }
 }

@@ -19,10 +19,16 @@ extension MTColor {
         let scanner = Scanner(string: hexString)
         scanner.charactersToBeSkipped = CharacterSet(charactersIn: "#")
         scanner.scanHexInt64(&rgbValue)
+        // #RRGGBBAA: the last two digits are the opacity
+        var alpha: CGFloat = 1
+        if hexString.count == 9 {
+            alpha = CGFloat(rgbValue & 0xFF) / 255.0
+            rgbValue >>= 8
+        }
         self.init(red: CGFloat((rgbValue & 0xFF0000) >> 16)/255.0,
                   green: CGFloat((rgbValue & 0xFF00) >> 8)/255.0,
                   blue: CGFloat((rgbValue & 0xFF))/255.0,
-                  alpha: 1.0)
+                  alpha: alpha)
     }
     
 }
