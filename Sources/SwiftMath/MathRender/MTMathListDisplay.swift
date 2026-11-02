@@ -856,3 +856,58 @@ extension MTDisplay {
         for display in held { display?.colorBoxes(from: holdsFrom, into: &boxes) }
     }
 }
+
+// MARK: - Ink
+
+extension MTDisplay {
+    /// What this display draws, in the coordinates it's drawn in (y up), `origin` as for
+    /// `colorBoxes`: its box joined with its glyphs' ink, which a slanted letter takes past its
+    /// advance (the P ending X + P)
+    func inkBounds(from origin: CGPoint) -> CGRect {
+        var ink = displayBounds().offsetBy(dx: origin.x, dy: origin.y)
+        var held: [MTDisplay?] = []
+        var holdsFrom = origin
+        switch self {
+        case let line as MTCTLineDisplay:
+            if let drawn = line.line {
+                let bounds = CTLineGetBoundsWithOptions(drawn, .useGlyphPathBounds)
+                if !bounds.isNull, !bounds.isEmpty {
+                    ink = ink.union(bounds.offsetBy(dx: origin.x + line.position.x, dy: origin.y + line.position.y))
+                }
+            }
+        case let glyph as MTGlyphDisplay:
+            if let font = glyph.font, var drawn = glyph.glyph {
+                var bounds = CGRect.zero
+                CTFontGetBoundingRectsForGlyphs(font.ctFont, .horizontal, &drawn, &bounds, 1)
+                if !bounds.isEmpty {
+                    ink = ink.union(bounds.offsetBy(dx: origin.x + glyph.position.x, dy: origin.y + glyph.position.y - glyph.shiftDown))
+                }
+            }
+        case let construction as MTGlyphConstructionDisplay:
+            if let font = construction.font, construction.numGlyphs > 0 {
+                var rects = [CGRect](repeating: .zero, count: construction.numGlyphs)
+                CTFontGetBoundingRectsForGlyphs(font.ctFont, .horizontal, construction.glyphs, &rects, construction.numGlyphs)
+                for (rect, at) in zip(rects, construction.positions) where !rect.isEmpty {
+                    ink = ink.union(rect.offsetBy(dx: origin.x + construction.position.x + at.x,
+                                                  dy: origin.y + construction.position.y - construction.shiftDown + at.y))
+                }
+            }
+        case let list as MTMathListDisplay:
+            held = list.subDisplays
+            holdsFrom = CGPoint(x: origin.x + list.position.x, y: origin.y + list.position.y)
+        case let fraction as MTFractionDisplay: held = [fraction.numerator, fraction.denominator]
+        case let radical as MTRadicalDisplay: held = [radical.radicand, radical.degree]
+        case let limits as MTLargeOpLimitsDisplay: held = [limits.upperLimit, limits.lowerLimit, limits.nucleus]
+        case let line as MTLineDisplay: held = [line.inner]
+        case let accent as MTAccentDisplay:
+            held = [accent.accentee]
+            // (the accent drawn from the accent's position)
+            if let mark = accent.accent {
+                ink = ink.union(mark.inkBounds(from: CGPoint(x: origin.x + accent.position.x, y: origin.y + accent.position.y)))
+            }
+        default: break
+        }
+        for display in held { if let display { ink = ink.union(display.inkBounds(from: holdsFrom)) } }
+        return ink
+    }
+}

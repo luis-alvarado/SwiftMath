@@ -113,6 +113,25 @@ final class MathImageTests: XCTestCase {
         }
         queue.async(group: group, execute: workitem)
     }
+
+    /// A slanted letter's ink past its advance has room in the image (the P ending Z = X + P
+    /// was clipped): the image is wider than the formula's advance by the overhang
+    func testImageHoldsInkPastItsAdvance() throws {
+        let font = MathFont.latinModernFont.mtfont(size: 60)
+        for latex in ["Z = X + P", "f", "W"] {
+            var image = MathImage(latex: latex, fontSize: 60, textColor: .black, labelMode: .display, textAlignment: .left)
+            let (error, drawn, _) = image.asImage()
+            XCTAssertNil(error)
+            let list = try XCTUnwrap(MTMathListBuilder.build(fromString: latex))
+            let display = try XCTUnwrap(MTTypesetter.createLineForMathList(list, font: font, style: .display))
+            XCTAssertGreaterThan(try XCTUnwrap(drawn).size.width, ceil(display.width), latex)
+        }
+        // Upright ink inside its advance: no wider
+        var plain = MathImage(latex: "2 + 3", fontSize: 60, textColor: .black, labelMode: .display, textAlignment: .left)
+        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: "2 + 3"))
+        let display = try XCTUnwrap(MTTypesetter.createLineForMathList(list, font: MathFont.latinModernFont.mtfont(size: 60), style: .display))
+        XCTAssertEqual(plain.asImage().1?.size.width, ceil(display.width))
+    }
 }
 public struct SwiftMathImageResult {
     let error: NSError?
@@ -209,4 +228,5 @@ enum Latex {
             \left( o_t - \hat{\mu}_m^{(s)} \right) ^T \cal C_m^{(s)-1} \right)
         """#
     ]
+
 }

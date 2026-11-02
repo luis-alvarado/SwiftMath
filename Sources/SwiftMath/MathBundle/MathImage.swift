@@ -87,8 +87,16 @@ extension MathImage {
         intrinsicContentSize = intrinsicContentSize(displayList)
         displayList.textColor = textColor
 
-        let size = intrinsicContentSize.regularized
+        var size = intrinsicContentSize.regularized
         layoutImage(size: size, displayList: displayList)
+        // Room for ink past the edges: a slanted letter's reaches past its advance (the P ending
+        // X + P, an f starting a line), which the image would clip
+        let ink = displayList.inkBounds(from: .zero)
+        let left = max(0, ceil(-ink.minX)), right = max(0, ceil(ink.maxX - size.width))
+        if left > 0 || right > 0 {
+            size.width += left + right
+            displayList.position.x += left
+        }
         var boxes: [CGRect] = []
         displayList.colorBoxes(from: .zero, into: &boxes)
         let layout = LayoutInfo(ascent: displayList.ascent, descent: displayList.descent,
