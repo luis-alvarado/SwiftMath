@@ -120,7 +120,8 @@ final class MTTypesetterTests: XCTestCase {
         
         XCTAssertEqual(display.ascent, 13.32, accuracy: 0.01)
         XCTAssertEqual(display.descent, 4.10, accuracy: 0.01)
-        XCTAssertEqual(display.width, 45.56, accuracy: 0.01)
+        // (y's italic correction before the 2)
+        XCTAssertEqual(display.width, 46.12, accuracy: 0.01)
     }
 
     func testEquationWithOperatorsAndRelations() throws {
@@ -1246,7 +1247,8 @@ final class MTTypesetterTests: XCTestCase {
         XCTAssertEqual(display2.subDisplays.count, 3);
         let rowPos = [ 30.28, -2.68, -31.95 ]
         // alignment is right, center, left.
-        let cellPos = [ [ 35.89, 65.89, 129.438 ], [ 45.89, 76.94, 129.438 ], [ 0, 87.66, 129.438] ]
+        // (y + z's y with its italic correction before the +: the column 0.56 wider)
+        let cellPos = [ [ 35.89, 65.89, 129.998 ], [ 45.89, 77.223, 129.998 ], [ 0, 87.943, 129.998] ]
         // check the 3 rows of the matrix
         for i in 0..<3 {
             let sub0i = display2.subDisplays[i];
@@ -1266,7 +1268,7 @@ final class MTTypesetterTests: XCTestCase {
                 
                 let col = sub0ij as! MTMathListDisplay
                 XCTAssertEqual(col.type, .regular);
-                XCTAssertTrue(CGPointMake(cellPos[i][j], 0).isEqual(to: col.position, accuracy: 0.01))
+                XCTAssertTrue(CGPointMake(cellPos[i][j], 0).isEqual(to: col.position, accuracy: 0.01), "cell \(i) \(j): \(col.position.x)")
                 XCTAssertFalse(col.hasScript)
                 XCTAssertEqual(col.index, NSNotFound);
             }

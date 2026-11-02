@@ -771,6 +771,7 @@ class MTTypesetter {
     func addDisplayLine() -> MTCTLineDisplay? {
         // add the font
         currentLine.addAttribute(kCTFontAttributeName as NSAttributedString.Key, value:styleFont.ctFont as Any, range:NSMakeRange(0, currentLine.length))
+        addItalicCorrections()
         /*assert(currentLineIndexRange.length == numCodePoints(currentLine.string),
          "The length of the current line: %@ does not match the length of the range (%d, %d)",
          currentLine, currentLineIndexRange.location, currentLineIndexRange.length);*/
@@ -786,6 +787,49 @@ class MTTypesetter {
         return displayAtom
     }
     
+    /// A math italic letter (𝑃, 𝜃, ℎ)
+    static func isMathItalic(_ scalar: Unicode.Scalar) -> Bool {
+        let v = scalar.value
+        return (0x1D434...0x1D467).contains(v) || (0x1D6E2...0x1D71B).contains(v) || v == UnicodeSymbol.planksConstant
+    }
+
+    /// TeX's italic correction inside a run of ordinary characters: an italic letter followed by
+    /// an upright one (P2, E2, f.) is spaced by its correction, so the upright one isn't tucked
+    /// under its slant. Between two italic letters the font's own spacing stands.
+    func addItalicCorrections() {
+        // Over the UTF-16 the attributed string counts in: a math italic letter is a surrogate pair
+        // starting 0xD835 (or ℎ, 0x210E); a run without one returns at once
+        let text = currentLine.mutableString
+        // (one character, or two making one letter: nothing follows it in the run)
+        guard text.length > 2 || (text.length == 2 && !UTF16.isLeadSurrogate(text.character(at: 0))) else { return }
+        var units = [UInt16](repeating: 0, count: text.length)
+        text.getCharacters(&units, range: NSMakeRange(0, text.length))
+        guard units.contains(where: { $0 == 0xD835 || $0 == 0x210E }) else { return }
+        let key = kCTKernAttributeName as NSAttributedString.Key
+        var i = 0
+        var previous: (start: Int, length: Int, italic: Bool)? = nil
+        while i < units.count {
+            let unit = units[i]
+            let length = UTF16.isLeadSurrogate(unit) && i + 1 < units.count ? 2 : 1
+            let scalar = length == 2 ? (UInt32(unit - 0xD800) << 10 | UInt32(units[i + 1] - 0xDC00)) + 0x10000 : UInt32(unit)
+            let italic = Unicode.Scalar(scalar).map(Self.isMathItalic) ?? false
+            // (a combining mark after a letter is the letter's)
+            let combining = length == 1 && (0x0300...0x036F).contains(unit)
+            if let previous, previous.italic, !italic, !combining {
+                var chars = Array(units[previous.start..<(previous.start + previous.length)])
+                var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+                if CTFontGetGlyphsForCharacters(styleFont.ctFont, &chars, &glyphs, chars.count),
+                   let delta = styleFont.mathTable?.getItalicCorrection(glyphs[0]), delta > 0 {
+                    // (added to the spacing already kept there: the space before a + in the run)
+                    let spacing = (currentLine.attribute(key, at: previous.start, effectiveRange: nil) as? NSNumber)?.doubleValue ?? 0
+                    currentLine.addAttribute(key, value: NSNumber(value: spacing + Double(delta)), range: NSMakeRange(previous.start, previous.length))
+                }
+            }
+            if !combining { previous = (i, length, italic) }
+            i += length
+        }
+    }
+
     // MARK: - Spacing
     
     // Returned in units of mu = 1/18 em.

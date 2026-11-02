@@ -114,6 +114,18 @@ final class MathImageTests: XCTestCase {
         queue.async(group: group, execute: workitem)
     }
 
+    /// TeX's italic correction inside a run: P2 is P, its correction, then 2 (the 2 not tucked
+    /// under the P's slant); two italic letters keep the font's own spacing
+    func testItalicCorrectionBeforeAnUprightCharacter() throws {
+        let font = MathFont.latinModernFont.mtfont(size: 60)
+        func width(_ latex: String) throws -> CGFloat {
+            let list = try XCTUnwrap(MTMathListBuilder.build(fromString: latex))
+            return try XCTUnwrap(MTTypesetter.createLineForMathList(list, font: font, style: .display)).width
+        }
+        XCTAssertGreaterThan(try width("P2"), try width("P") + width("2") + 1)
+        XCTAssertEqual(try width("22"), try width("2") * 2, accuracy: 0.01)
+    }
+
     /// A slanted letter's ink past its advance has room in the image (the P ending Z = X + P
     /// was clipped): the image is wider than the formula's advance by the overhang
     func testImageHoldsInkPastItsAdvance() throws {
