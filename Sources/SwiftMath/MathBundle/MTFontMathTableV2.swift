@@ -102,15 +102,21 @@ internal class MTFontMathTableV2: MTFontMathTable {
     /** Returns the italic correction for the given glyph if any. If there
      isn't any this returns 0. */
     override func getItalicCorrection(_ glyph: CGGlyph) -> CGFloat {
-        let font = mathFont.mtfont(size: fontSize)
-        let glyphName = font.get(nameForGlyph: glyph)
-
-        guard let italics = mTable[kItalic] as? NSDictionary, let val = italics[glyphName] as? NSNumber else {
-            return .zero
-        }
-        // if val is nil, this returns 0.
-        return fontUnitsToPt(val.intValue)
+        // In font units, any size: each font's glyph looked up by its name once
+        Self.italicLock.lock()
+        let known = Self.italicUnits[mathFont]?[glyph]
+        Self.italicLock.unlock()
+        if let known { return fontUnitsToPt(known) }
+        let glyphName = mathFont.cgFont().name(for: glyph) as? String ?? ""
+        let units = ((mTable[kItalic] as? NSDictionary)?[glyphName] as? NSNumber)?.intValue ?? 0
+        Self.italicLock.lock()
+        Self.italicUnits[mathFont, default: [:]][glyph] = units
+        Self.italicLock.unlock()
+        return fontUnitsToPt(units)
     }
+    /// Italic corrections in font units, by font and glyph
+    private static var italicUnits: [MathFont: [CGGlyph: Int]] = [:]
+    private static let italicLock = NSLock()
     override func getTopAccentAdjustment(_ glyph: CGGlyph) -> CGFloat {
         let font = mathFont.mtfont(size: fontSize)
         let glyphName = font.get(nameForGlyph: glyph)

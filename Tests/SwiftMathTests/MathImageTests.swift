@@ -127,19 +127,25 @@ final class MathImageTests: XCTestCase {
     }
 
     /// TeX's italic correction inside a run: P2 is P, its correction, then 2 (the 2 not tucked
-    /// under the P's slant); two italic letters keep the font's own spacing
+    /// under the P's slant); a run's last italic letter is followed by it too (T before a
+    /// bracket); two italic letters keep the font's own spacing
     func testItalicCorrectionBeforeAnUprightCharacter() throws {
         let font = MathFont.latinModernFont.mtfont(size: 60)
         func width(_ latex: String) throws -> CGFloat {
             let list = try XCTUnwrap(MTMathListBuilder.build(fromString: latex))
             return try XCTUnwrap(MTTypesetter.createLineForMathList(list, font: font, style: .display)).width
         }
-        XCTAssertGreaterThan(try width("P2"), try width("P") + width("2") + 1)
+        var chars: [UniChar] = Array("\u{1D443}".utf16), glyphs = [CGGlyph](repeating: 0, count: 2)
+        XCTAssertTrue(CTFontGetGlyphsForCharacters(font.ctFont, &chars, &glyphs, 2))
+        let advance = CTFontGetAdvancesForGlyphs(font.ctFont, .horizontal, glyphs, nil, 1)
+        XCTAssertGreaterThan(try width("P"), CGFloat(advance) + 1)
+        XCTAssertEqual(try width("P2"), try width("P") + width("2"), accuracy: 0.01)
+        XCTAssertGreaterThan(try width("\\left[ T \\right]"), try width("\\left[ 2 \\right]") + 1)
         XCTAssertEqual(try width("22"), try width("2") * 2, accuracy: 0.01)
     }
 
     /// A slanted letter's ink past its advance has room in the image (the P ending Z = X + P
-    /// was clipped): the image is wider than the formula's advance by the overhang
+    /// was clipped): the image is at least the formula's advance, room for the overhang
     func testImageHoldsInkPastItsAdvance() throws {
         let font = MathFont.latinModernFont.mtfont(size: 60)
         for latex in ["Z = X + P", "f", "W"] {
@@ -148,7 +154,7 @@ final class MathImageTests: XCTestCase {
             XCTAssertNil(error)
             let list = try XCTUnwrap(MTMathListBuilder.build(fromString: latex))
             let display = try XCTUnwrap(MTTypesetter.createLineForMathList(list, font: font, style: .display))
-            XCTAssertGreaterThan(try XCTUnwrap(drawn).size.width, ceil(display.width), latex)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(drawn).size.width, ceil(display.width), latex)
         }
         // Upright ink inside its advance: no wider
         var plain = MathImage(latex: "2 + 3", fontSize: 60, textColor: .black, labelMode: .display, textAlignment: .left)

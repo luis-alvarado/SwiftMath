@@ -738,7 +738,8 @@ class MTTypesetter {
                     if atom.subScript != nil || atom.superScript != nil {
                         // stash the existing line
                         // We don't check currentLine.length here since we want to allow empty lines with super/sub scripts.
-                        let line = self.addDisplayLine()
+                        // (its italic correction places the scripts: none added after it here)
+                        let line = self.addDisplayLine(trailingItalicCorrection: false)
                         var delta = CGFloat(0)
                         if !atom.nucleus.isEmpty {
                             // Use the italic correction of the last character.
@@ -767,11 +768,14 @@ class MTTypesetter {
         }
     }
     
+    /// - Parameter trailingItalicCorrection: the run's last letter, when it's italic, followed by
+    ///   its italic correction (TeX's kern after a math character: before a delimiter, a
+    ///   fraction, a cell's end); not when scripts follow it (the correction places them)
     @discardableResult
-    func addDisplayLine() -> MTCTLineDisplay? {
+    func addDisplayLine(trailingItalicCorrection: Bool = true) -> MTCTLineDisplay? {
         // add the font
         currentLine.addAttribute(kCTFontAttributeName as NSAttributedString.Key, value:styleFont.ctFont as Any, range:NSMakeRange(0, currentLine.length))
-        addItalicCorrections()
+        addItalicCorrections(trailing: trailingItalicCorrection)
         /*assert(currentLineIndexRange.length == numCodePoints(currentLine.string),
          "The length of the current line: %@ does not match the length of the range (%d, %d)",
          currentLine, currentLineIndexRange.location, currentLineIndexRange.length);*/
@@ -793,19 +797,30 @@ class MTTypesetter {
         return (0x1D434...0x1D467).contains(v) || (0x1D6E2...0x1D71B).contains(v) || v == UnicodeSymbol.planksConstant
     }
 
-    /// TeX's italic correction inside a run of ordinary characters: an italic letter followed by
-    /// an upright one (P2, E2, f.) is spaced by its correction, so the upright one isn't tucked
-    /// under its slant. Between two italic letters the font's own spacing stands.
-    func addItalicCorrections() {
+    /// TeX's italic correction in a run of ordinary characters: an italic letter followed by an
+    /// upright one (P2, E2, f.) is spaced by its correction, so the upright one isn't tucked under
+    /// its slant; and, `trailing`, the run's last letter when it's italic (T before a matrix
+    /// cell's end, a \right], a fraction: the bracket's serif not over its crossbar). Between two
+    /// italic letters the font's own spacing stands.
+    func addItalicCorrections(trailing: Bool = true) {
         // Over the UTF-16 the attributed string counts in: a math italic letter is a surrogate pair
         // starting 0xD835 (or ℎ, 0x210E); a run without one returns at once
         let text = currentLine.mutableString
-        // (one character, or two making one letter: nothing follows it in the run)
-        guard text.length > 2 || (text.length == 2 && !UTF16.isLeadSurrogate(text.character(at: 0))) else { return }
+        guard text.length > 0 else { return }
         var units = [UInt16](repeating: 0, count: text.length)
         text.getCharacters(&units, range: NSMakeRange(0, text.length))
         guard units.contains(where: { $0 == 0xD835 || $0 == 0x210E }) else { return }
         let key = kCTKernAttributeName as NSAttributedString.Key
+        /// A letter's italic correction after it, added to the spacing already kept there (the
+        /// space before a + in the run)
+        func correct(_ letter: (start: Int, length: Int, italic: Bool)) {
+            var chars = Array(units[letter.start..<(letter.start + letter.length)])
+            var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+            guard CTFontGetGlyphsForCharacters(styleFont.ctFont, &chars, &glyphs, chars.count),
+                  let delta = styleFont.mathTable?.getItalicCorrection(glyphs[0]), delta > 0 else { return }
+            let spacing = (currentLine.attribute(key, at: letter.start, effectiveRange: nil) as? NSNumber)?.doubleValue ?? 0
+            currentLine.addAttribute(key, value: NSNumber(value: spacing + Double(delta)), range: NSMakeRange(letter.start, letter.length))
+        }
         var i = 0
         var previous: (start: Int, length: Int, italic: Bool)? = nil
         while i < units.count {
@@ -815,19 +830,12 @@ class MTTypesetter {
             let italic = Unicode.Scalar(scalar).map(Self.isMathItalic) ?? false
             // (a combining mark after a letter is the letter's)
             let combining = length == 1 && (0x0300...0x036F).contains(unit)
-            if let previous, previous.italic, !italic, !combining {
-                var chars = Array(units[previous.start..<(previous.start + previous.length)])
-                var glyphs = [CGGlyph](repeating: 0, count: chars.count)
-                if CTFontGetGlyphsForCharacters(styleFont.ctFont, &chars, &glyphs, chars.count),
-                   let delta = styleFont.mathTable?.getItalicCorrection(glyphs[0]), delta > 0 {
-                    // (added to the spacing already kept there: the space before a + in the run)
-                    let spacing = (currentLine.attribute(key, at: previous.start, effectiveRange: nil) as? NSNumber)?.doubleValue ?? 0
-                    currentLine.addAttribute(key, value: NSNumber(value: spacing + Double(delta)), range: NSMakeRange(previous.start, previous.length))
-                }
-            }
+            if let previous, previous.italic, !italic, !combining { correct(previous) }
             if !combining { previous = (i, length, italic) }
             i += length
         }
+        // The last letter, italic, then the end of the run
+        if trailing, let previous, previous.italic { correct(previous) }
     }
 
     // MARK: - Spacing
@@ -1083,6 +1091,8 @@ class MTTypesetter {
         display.lineThickness = barThickness;
         display.linePosition = barLocation;
         if frac!.leftDelimiter.isEmpty && frac!.rightDelimiter.isEmpty {
+            // TeX's null delimiters: \nulldelimiterspace (1.2 pt at 10 pt) each side
+            display.padding = font.fontSize * 0.12
             return display
         } else {
             return self.addDelimitersToFractionDisplay(display, forFraction:frac)

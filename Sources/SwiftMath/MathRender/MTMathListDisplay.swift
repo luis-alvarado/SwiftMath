@@ -304,6 +304,9 @@ public class MTFractionDisplay : MTDisplay {
     var denominatorDown:CGFloat=0 { didSet { self.updateDenominatorPosition() } }
     var linePosition:CGFloat=0
     var lineThickness:CGFloat=0
+    /// Room on each side (TeX's \nulldelimiterspace around a fraction with no delimiters): in its
+    /// width, the parts and the bar centered within it
+    var padding:CGFloat=0 { didSet { self.updateNumeratorPosition(); self.updateDenominatorPosition() } }
     
     init(withNumerator numerator:MTMathListDisplay?, denominator:MTMathListDisplay?, position:CGPoint, range:NSRange) {
         super.init()
@@ -326,7 +329,7 @@ public class MTFractionDisplay : MTDisplay {
 
     override public var width:CGFloat {
         set { super.width = newValue }
-        get { max(numerator!.width, denominator!.width) }
+        get { max(numerator!.width, denominator!.width) + 2 * padding }
     }
 
     func updateDenominatorPosition() {
@@ -370,8 +373,8 @@ public class MTFractionDisplay : MTDisplay {
         // Note: line thickness of 0 draws the thinnest possible line - we want no line so check for 0s
         if self.lineThickness > 0 {
             let path = MTBezierPath()
-            path.move(to: CGPointMake(self.position.x, self.position.y + self.linePosition))
-            path.addLine(to: CGPointMake(self.position.x + self.width, self.position.y + self.linePosition))
+            path.move(to: CGPointMake(self.position.x + padding, self.position.y + self.linePosition))
+            path.addLine(to: CGPointMake(self.position.x + self.width - padding, self.position.y + self.linePosition))
             path.lineWidth = self.lineThickness
             path.stroke()
         }

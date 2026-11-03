@@ -90,7 +90,8 @@ final class MTTypesetterTests: XCTestCase {
         
         XCTAssertEqual(display.ascent, 8.834, accuracy: 0.01)
         XCTAssertEqual(display.descent, 4.10, accuracy: 0.01)
-        XCTAssertEqual(display.width, 44.86, accuracy: 0.01)
+        // (w's italic correction ending the run: 0.06)
+        XCTAssertEqual(display.width, 44.92, accuracy: 0.01)
     }
 
     func testVariablesAndNumbers() throws {
@@ -121,7 +122,7 @@ final class MTTypesetterTests: XCTestCase {
         XCTAssertEqual(display.ascent, 13.32, accuracy: 0.01)
         XCTAssertEqual(display.descent, 4.10, accuracy: 0.01)
         // (y's italic correction before the 2)
-        XCTAssertEqual(display.width, 46.12, accuracy: 0.01)
+        XCTAssertEqual(display.width, 46.18, accuracy: 0.01)
     }
 
     func testEquationWithOperatorsAndRelations() throws {
@@ -151,7 +152,8 @@ final class MTTypesetterTests: XCTestCase {
         
         XCTAssertEqual(display.ascent, 13.32, accuracy: 0.01)
         XCTAssertEqual(display.descent, 4.10, accuracy: 0.01)
-        XCTAssertEqual(display.width, 92.36, accuracy: 0.01)
+        // (y's italic correction ending the run)
+        XCTAssertEqual(display.width, 92.92, accuracy: 0.01)
     }
 
 //    #define XCTAssertTrue(CGPointEqualToPoint(p1, p2, accuracy, ...) \
@@ -484,7 +486,7 @@ final class MTTypesetterTests: XCTestCase {
         
         let display2 = fraction.numerator!
         XCTAssertEqual(display2.type, .regular);
-        XCTAssertTrue(CGPointEqualToPoint(display2.position, CGPointMake(0, 13.54)))
+        XCTAssertTrue(CGPointMake(2.4, 13.54).isEqual(to: display2.position, accuracy: 0.01))
         XCTAssertTrue(NSEqualRanges(display2.range, NSMakeRange(0, 1)));
         XCTAssertFalse(display2.hasScript);
         XCTAssertEqual(display2.index, NSNotFound);
@@ -501,7 +503,7 @@ final class MTTypesetterTests: XCTestCase {
         
         let display3 = fraction.denominator!
         XCTAssertEqual(display3.type, .regular);
-        XCTAssertTrue(CGPointEqualToPoint(display3.position, CGPointMake(0, -13.72)))
+        XCTAssertTrue(CGPointMake(2.4, -13.72).isEqual(to: display3.position, accuracy: 0.01))
         XCTAssertTrue(NSEqualRanges(display3.range, NSMakeRange(0, 1)));
         XCTAssertFalse(display3.hasScript);
         XCTAssertEqual(display3.index, NSNotFound);
@@ -519,7 +521,8 @@ final class MTTypesetterTests: XCTestCase {
         // dimensions
         XCTAssertEqual(display.ascent, 26.86, accuracy: 0.01)
         XCTAssertEqual(display.descent, 14.16, accuracy: 0.01)
-        XCTAssertEqual(display.width, 10, accuracy: 0.01)
+        // (TeX's null delimiter space, 1.2 pt at 10 pt, each side)
+        XCTAssertEqual(display.width, 14.8, accuracy: 0.01)
     }
 
     func testAtop() throws {
@@ -553,7 +556,7 @@ final class MTTypesetterTests: XCTestCase {
         
         let display2 = fraction.numerator!
         XCTAssertEqual(display2.type, .regular);
-        XCTAssertTrue(CGPointEqualToPoint(display2.position, CGPointMake(0, 13.54)))
+        XCTAssertTrue(CGPointMake(2.4, 13.54).isEqual(to: display2.position, accuracy: 0.01))
         XCTAssertTrue(NSEqualRanges(display2.range, NSMakeRange(0, 1)));
         XCTAssertFalse(display2.hasScript);
         XCTAssertEqual(display2.index, NSNotFound);
@@ -570,7 +573,7 @@ final class MTTypesetterTests: XCTestCase {
         
         let display3 = fraction.denominator!
         XCTAssertEqual(display3.type, .regular);
-        XCTAssertTrue(CGPointEqualToPoint(display3.position, CGPointMake(0, -13.72)))
+        XCTAssertTrue(CGPointMake(2.4, -13.72).isEqual(to: display3.position, accuracy: 0.01))
         XCTAssertTrue(NSEqualRanges(display3.range, NSMakeRange(0, 1)));
         XCTAssertFalse(display3.hasScript);
         XCTAssertEqual(display3.index, NSNotFound);
@@ -588,7 +591,8 @@ final class MTTypesetterTests: XCTestCase {
         // dimensions
         XCTAssertEqual(display.ascent, 26.86, accuracy: 0.01)
         XCTAssertEqual(display.descent, 14.16, accuracy: 0.01)
-        XCTAssertEqual(display.width, 10, accuracy: 0.01)
+        // (TeX's null delimiter space, 1.2 pt at 10 pt, each side)
+        XCTAssertEqual(display.width, 14.8, accuracy: 0.01)
     }
 
     func testBinomial() throws {
@@ -1193,7 +1197,8 @@ final class MTTypesetterTests: XCTestCase {
         // dimensions
         XCTAssertEqual(display.ascent, 49.16, accuracy: 0.01)
         XCTAssertEqual(display.descent, 21.288, accuracy: 0.01)
-        XCTAssertEqual(display.width, 82.569, accuracy: 0.01)
+        // (two fractions, each with its null delimiter space)
+        XCTAssertEqual(display.width, 92.169, accuracy: 0.01)
     }
 
     func testMathTable() throws {
@@ -1247,8 +1252,9 @@ final class MTTypesetterTests: XCTestCase {
         XCTAssertEqual(display2.subDisplays.count, 3);
         let rowPos = [ 30.28, -2.68, -31.95 ]
         // alignment is right, center, left.
-        // (y + z's y with its italic correction before the +: the column 0.56 wider)
-        let cellPos = [ [ 35.89, 65.89, 129.998 ], [ 45.89, 77.223, 129.998 ], [ 0, 87.943, 129.998] ]
+        // (y + z's y with its italic correction before the +, and z's ending the cell: the column
+        // 1.16 wider; the fraction with its null delimiter space)
+        let cellPos = [ [ 35.89, 65.89, 130.598 ], [ 45.89, 75.123, 130.598 ], [ 0, 88.243, 130.598] ]
         // check the 3 rows of the matrix
         for i in 0..<3 {
             let sub0i = display2.subDisplays[i];
@@ -1564,14 +1570,15 @@ final class MTTypesetterTests: XCTestCase {
         XCTAssertFalse(line2.hasScript);
 
         let glyph = accentDisp.accent!
-        XCTAssertTrue(CGPointMake(3.47, 0).isEqual(to: glyph.position, accuracy: 0.01))
+        XCTAssertTrue(CGPointMake(3.50, 0).isEqual(to: glyph.position, accuracy: 0.01))
         XCTAssertTrue(NSEqualRanges(glyph.range, NSMakeRange(0, 1)))
         XCTAssertFalse(glyph.hasScript);
 
         // dimensions
         XCTAssertEqual(display.ascent, 14.98, accuracy: 0.01)
         XCTAssertEqual(display.descent, 4.10, accuracy: 0.01)
-        XCTAssertEqual(display.width, 44.86, accuracy: 0.01)
+        // (w's italic correction ending the run: 0.06)
+        XCTAssertEqual(display.width, 44.92, accuracy: 0.01)
     }
 
 }
