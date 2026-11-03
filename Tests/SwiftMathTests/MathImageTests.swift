@@ -114,6 +114,18 @@ final class MathImageTests: XCTestCase {
         queue.async(group: group, execute: workitem)
     }
 
+    /// TeX's prime: ' in math is the font's prime beside the letter (′ ″ ‴), as unicode-math sets
+    /// it; in \text an apostrophe stays one
+    func testApostropheIsAPrime() throws {
+        func atoms(_ latex: String) throws -> [String] {
+            try XCTUnwrap(MTMathListBuilder.build(fromString: latex)).atoms.map(\.nucleus)
+        }
+        XCTAssertEqual(try atoms("x'"), ["x", "\u{2032}"])
+        XCTAssertEqual(try atoms("f''"), ["f", "\u{2033}"])
+        XCTAssertEqual(try atoms("y'^2").count, 2)
+        XCTAssertTrue(try atoms("\\text{it's}").joined().contains("'"))
+    }
+
     /// TeX's italic correction inside a run: P2 is P, its correction, then 2 (the 2 not tucked
     /// under the P's slant); two italic letters keep the font's own spacing
     func testItalicCorrectionBeforeAnUprightCharacter() throws {

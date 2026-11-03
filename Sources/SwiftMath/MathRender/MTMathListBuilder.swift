@@ -200,6 +200,23 @@ public struct MTMathListBuilder {
                 return list
             }
             
+            // TeX's prime: f' is f^{\prime}, f'' f^{\prime\prime}, f'^2 the primes then the power (in
+            // \text, an apostrophe stays one)
+            // (an apostrophe a letter follows, it's in a failing line's words: an apostrophe)
+            let letterNext = hasCharacters && string[currentCharIndex].isLetter
+            if char == "'", !spacesAllowed, !oneCharOnly, !letterNext {
+                var count = 1
+                while hasCharacters {
+                    if getNextCharacter() == "'" { count += 1 } else { unlookCharacter(); break }
+                }
+                // (the font's prime, ′ ″ ‴, is drawn raised already: at its own size, beside the
+                // letter, as unicode-math sets it; a power after it, f'^2, its script)
+                let glyph = count == 1 ? "\u{2032}" : count == 2 ? "\u{2033}" : count == 3 ? "\u{2034}" : String(repeating: "\u{2032}", count: count)
+                let prime = MTMathAtom(type: .ordinary, value: glyph)
+                list.add(prime)
+                prevAtom = prime
+                continue
+            }
             if char == "^" {
                 assert(!oneCharOnly, "This should have been handled before")
                 if (prevAtom == nil || prevAtom!.superScript != nil || !prevAtom!.isScriptAllowed()) {
